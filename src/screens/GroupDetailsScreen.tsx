@@ -288,7 +288,7 @@ export default function GroupDetailsScreen() {
                             label="Budget Management"
                             color={colors.accent.emerald}
                             bgColor={colors.accent.emerald + '20'}
-                            onPress={() => handleFeatureNotImplemented('Budget')}
+                            onPress={() => navigation.navigate('BudgetManagement', { groupId, groupName })}
                         />
                         <MenuGridItem
                             icon="file-text"

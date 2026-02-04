@@ -90,6 +90,30 @@ export const currencyApi = {
     getAll: () => apiClient.get('/currencies'),
 };
 
+// Budget API
+export const budgetApi = {
+    create: (groupId: number, data: { amount: number; categoryId?: number; period: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY' }) =>
+        apiClient.post(`/groups/${groupId}/budgets`, data),
+
+    getAll: (groupId: number) =>
+        apiClient.get(`/groups/${groupId}/budgets`),
+
+    getById: (budgetId: number) =>
+        apiClient.get(`/budgets/${budgetId}`),
+
+    getStatus: (budgetId: number) =>
+        apiClient.get(`/budgets/${budgetId}/status`),
+
+    update: (budgetId: number, data: any) =>
+        apiClient.put(`/budgets/${budgetId}`, data),
+
+    delete: (budgetId: number) =>
+        apiClient.delete(`/budgets/${budgetId}`),
+
+    getAlerts: (groupId: number) =>
+        apiClient.get(`/groups/${groupId}/budgets/alerts`),
+};
+
 // Export all
 export default {
     auth: authApi,
@@ -100,4 +124,5 @@ export default {
     activity: activityApi,
     notification: notificationApi,
     currency: currencyApi,
+    budget: budgetApi,
 };

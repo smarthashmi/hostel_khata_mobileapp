@@ -21,6 +21,8 @@ import ActivityLogScreen from '../screens/ActivityLogScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import AddMemberScreen from '../screens/AddMemberScreen';
+import LedgerScreen from '../screens/LedgerScreen';
+import BudgetManagementScreen from '../screens/BudgetManagementScreen';
 
 // Icons
 import { Feather } from '@expo/vector-icons';
@@ -115,6 +117,8 @@ export default function AppNavigator() {
                         <Stack.Screen name="ActivityLog" component={ActivityLogScreen} />
                         <Stack.Screen name="Notifications" component={NotificationsScreen} />
                         <Stack.Screen name="AddMember" component={AddMemberScreen} />
+                        <Stack.Screen name="Ledger" component={LedgerScreen} />
+                        <Stack.Screen name="BudgetManagement" component={BudgetManagementScreen} />
                     </>
                 )}
             </Stack.Navigator>
