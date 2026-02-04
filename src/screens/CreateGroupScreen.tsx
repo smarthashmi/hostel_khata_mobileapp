@@ -146,52 +146,51 @@ export default function CreateGroupScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                </View>
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Currency</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                        {currencies.map((currency) => (
-                            <TouchableOpacity
-                                key={currency.id}
-                                style={[
-                                    styles.currencyChip,
-                                    selectedCurrency === currency.id && styles.currencyChipActive
-                                ]}
-                                onPress={() => setSelectedCurrency(currency.id)}
-                            >
-                                <Text style={[styles.currencySymbol, selectedCurrency === currency.id && { color: colors.text.inverse }]}>
-                                    {currency.symbol}
-                                </Text>
-                                <Text style={[styles.currencyCode, selectedCurrency === currency.id && { color: colors.text.inverse }]}>
-                                    {currency.code}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Currency</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                            {currencies.map((currency) => (
+                                <TouchableOpacity
+                                    key={currency.id}
+                                    style={[
+                                        styles.currencyChip,
+                                        selectedCurrency === currency.id && styles.currencyChipActive
+                                    ]}
+                                    onPress={() => setSelectedCurrency(currency.id)}
+                                >
+                                    <Text style={[styles.currencySymbol, selectedCurrency === currency.id && { color: colors.text.inverse }]}>
+                                        {currency.symbol}
+                                    </Text>
+                                    <Text style={[styles.currencyCode, selectedCurrency === currency.id && { color: colors.text.inverse }]}>
+                                        {currency.code}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
 
-                <TouchableOpacity
-                    style={styles.createButton}
-                    onPress={handleCreate}
-                    disabled={isLoading}
-                >
-                    <LinearGradient
-                        colors={gradientColors}
-                        style={styles.gradientButton}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
+                    <TouchableOpacity
+                        style={styles.createButton}
+                        onPress={handleCreate}
+                        disabled={isLoading}
                     >
-                        {isLoading ? (
-                            <ActivityIndicator color={colors.text.inverse} />
-                        ) : (
-                            <Text style={styles.buttonText}>Create Group</Text>
-                        )}
-                    </LinearGradient>
-                </TouchableOpacity>
+                        <LinearGradient
+                            colors={gradientColors}
+                            style={styles.gradientButton}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color={colors.text.inverse} />
+                            ) : (
+                                <Text style={styles.buttonText}>Create Group</Text>
+                            )}
+                        </LinearGradient>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
-        </View >
     );
 }
 
