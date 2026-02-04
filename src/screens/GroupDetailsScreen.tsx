@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
 import apiMethods from '../services/apiMethods';
+import * as Clipboard from 'expo-clipboard';
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_WIDTH = (width - (spacing.lg * 2) - spacing.md) / 2;
@@ -113,6 +114,13 @@ export default function GroupDetailsScreen() {
         );
     };
 
+    const handleCopyInviteCode = async () => {
+        if (group?.code) {
+            await Clipboard.setStringAsync(group.code);
+            Alert.alert('Copied!', `Invite code ${group.code} copied to clipboard`);
+        }
+    };
+
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
@@ -148,10 +156,10 @@ export default function GroupDetailsScreen() {
                     </TouchableOpacity>
                     <View>
                         <Text style={styles.headerTitle}>{groupName}</Text>
-                        <View style={styles.codeContainer}>
+                        <TouchableOpacity style={styles.codeContainer} onPress={handleCopyInviteCode}>
                             <Text style={styles.headerSubtitle}>Code: {group?.code || 'N/A'}</Text>
                             <Feather name="copy" size={14} color="rgba(255,255,255,0.7)" style={{ marginLeft: 6 }} />
-                        </View>
+                        </TouchableOpacity>
                     </View>
                     <TouchableOpacity style={styles.settingsButton} onPress={() => handleFeatureNotImplemented('Settings')}>
                         <Feather name="settings" size={24} color={colors.text.inverse} />
@@ -166,7 +174,7 @@ export default function GroupDetailsScreen() {
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Pool Balance</Text>
                         <Text style={[styles.statValue, { color: colors.accent.emerald }]}>
-                            {group?.currency?.symbol || '$'}{stats.poolBalance.toFixed(2)}
+                            {group?.defaultCurrency?.symbol || '$'}{stats.poolBalance.toFixed(2)}
                         </Text>
                         <View style={styles.statIconAb}>
                             <Feather name="briefcase" size={16} color={colors.accent.emerald} />
@@ -191,7 +199,7 @@ export default function GroupDetailsScreen() {
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Total Expenses</Text>
                         <Text style={[styles.statValue, { color: colors.error }]}>
-                            {group?.currency?.symbol || '$'}{stats.totalExpenses.toFixed(2)}
+                            {group?.defaultCurrency?.symbol || '$'}{stats.totalExpenses.toFixed(2)}
                         </Text>
                         <View style={styles.statIconAb}>
                             <Feather name="trending-down" size={16} color={colors.error} />
