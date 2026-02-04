@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // API Configuration
 const API_BASE_URL = __DEV__
-    ? 'http://localhost:3000/api'  // Development (use your computer's IP for physical device)
+    ? 'https://api-hostelkhata.xivra.pk/api'  // Use production for now
     : 'https://api-hostelkhata.xivra.pk/api';  // Production
 
 // Create axios instance
