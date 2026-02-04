@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -9,19 +9,27 @@ import {
     Platform,
     ScrollView,
     Alert,
+    Modal,
+    SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
     const navigation = useNavigation<any>();
-    const { login } = useAuth();
+    const { login, loginWithToken } = useAuth();
 
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
+    const [showGoogleModal, setShowGoogleModal] = useState(false);
+
+    // This URL must match your BACKEND deployment URL
+    const GOOGLE_AUTH_URL = 'https://api-hostelkhata.xivra.pk/api/auth/google';
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -31,11 +39,52 @@ export default function LoginScreen() {
 
         setIsLoading(true);
         try {
+            console.log('Attempting login with:', email);
             await login(email, password);
+            console.log('Login successful');
         } catch (error: any) {
-            Alert.alert('Login Failed', error.message);
+            console.error('Login error details:', error);
+            const message = error.message || 'Unknown error occurred';
+            Alert.alert('Login Failed', `Details: ${message}\n\nPlease check your internet connection and try again.`);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = () => {
+        setShowGoogleModal(true);
+    };
+
+    const handleWebViewNavigationStateChange = async (newNavState: any) => {
+        const { url } = newNavState;
+        // console.log('WebView URL:', url); // Debugging
+
+        // Check if the URL contains the success token
+        // Expected format: https://hostelkhata.xivra.pk/auth/success?token=eyJ...
+        if (url.includes('token=')) {
+            // Extract token
+            const token = url.split('token=')[1].split('&')[0];
+
+            if (token) {
+                setShowGoogleModal(false);
+                try {
+                    console.log('Google Login Token Extracted:', token.substring(0, 10) + '...');
+
+                    // Use the context helper to set token AND fetch user details
+                    await loginWithToken(token);
+
+                    Alert.alert('Success', 'Google Login Successful!');
+                } catch (error) {
+                    console.error('Error saving Google token:', error);
+                    Alert.alert('Error', 'Failed to save login session.');
+                }
+            }
+        }
+
+        // Handle failure redirect
+        if (url.includes('error=auth_failed') || url.includes('error=server_error')) {
+            setShowGoogleModal(false);
+            Alert.alert('Login Failed', 'Google authentication failed.');
         }
     };
 
@@ -130,7 +179,11 @@ export default function LoginScreen() {
                     </View>
 
                     {/* Google Sign In */}
-                    <TouchableOpacity style={styles.googleButton} activeOpacity={0.8}>
+                    <TouchableOpacity
+                        style={styles.googleButton}
+                        activeOpacity={0.8}
+                        onPress={handleGoogleLogin}
+                    >
                         <Text style={styles.googleIcon}>G</Text>
                         <Text style={styles.googleButtonText}>Continue with Google</Text>
                     </TouchableOpacity>
@@ -144,6 +197,28 @@ export default function LoginScreen() {
                     </View>
                 </View>
             </ScrollView>
+
+            {/* Google Login WebView Modal */}
+            <Modal
+                visible={showGoogleModal}
+                animationType="slide"
+                onRequestClose={() => setShowGoogleModal(false)}
+            >
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+                    <View style={{ padding: 10, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' }}>
+                        <Text style={{ position: 'absolute', left: 0, right: 0, textAlign: 'center', fontWeight: 'bold' }}>Sign in to Google</Text>
+                        <TouchableOpacity onPress={() => setShowGoogleModal(false)} style={{ padding: 5 }}>
+                            <Text style={{ color: colors.primary.main, fontSize: 16, fontWeight: '600' }}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <WebView
+                        source={{ uri: GOOGLE_AUTH_URL }}
+                        onNavigationStateChange={handleWebViewNavigationStateChange}
+                        startInLoadingState={true}
+                        userAgent="Mozilla/5.0 (Linux; Android 10; Android SDK built for x86) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+                    />
+                </SafeAreaView>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -210,7 +285,7 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.semibold,
+        fontWeight: typography.fontWeight.semibold as any,
         color: colors.text.secondary,
         marginBottom: spacing.sm,
         textTransform: 'uppercase',
@@ -232,7 +307,7 @@ const styles = StyleSheet.create({
     forgotText: {
         fontSize: typography.fontSize.sm,
         color: colors.primary.main,
-        fontWeight: typography.fontWeight.semibold,
+        fontWeight: typography.fontWeight.semibold as any,
     },
     loginButton: {
         borderRadius: borderRadius.lg,
@@ -246,7 +321,7 @@ const styles = StyleSheet.create({
     },
     loginButtonText: {
         fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.bold,
+        fontWeight: typography.fontWeight.bold as any,
         color: colors.text.inverse,
         textTransform: 'uppercase',
         letterSpacing: 1,
@@ -265,7 +340,7 @@ const styles = StyleSheet.create({
         marginHorizontal: spacing.md,
         fontSize: typography.fontSize.xs,
         color: colors.text.tertiary,
-        fontWeight: typography.fontWeight.semibold,
+        fontWeight: typography.fontWeight.semibold as any,
     },
     googleButton: {
         flexDirection: 'row',
@@ -279,12 +354,12 @@ const styles = StyleSheet.create({
     googleIcon: {
         fontSize: typography.fontSize.lg,
         marginRight: spacing.sm,
-        fontWeight: typography.fontWeight.bold,
+        fontWeight: typography.fontWeight.bold as any,
         color: colors.primary.main,
     },
     googleButtonText: {
         fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.semibold,
+        fontWeight: typography.fontWeight.semibold as any,
         color: colors.text.primary,
     },
     signupContainer: {

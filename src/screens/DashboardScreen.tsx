@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -7,17 +7,97 @@ import {
     StyleSheet,
     Platform,
     StatusBar,
+    RefreshControl,
+    ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import { useAuth } from '../contexts/AuthContext';
+import apiMethods from '../services/apiMethods';
+import { Feather } from '@expo/vector-icons';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function DashboardScreen() {
-    const user = { name: 'Smart Hashmi' };
-    const groups = [
-        { id: 1, name: 'Hostel Room 201', balance: 1250.50, members: 4, color: colors.primary.main },
-        { id: 2, name: 'Weekend Trip', balance: -320.00, members: 6, color: colors.accent.cyan },
-        { id: 3, name: 'Office Lunch', balance: 0, members: 8, color: colors.accent.emerald },
-    ];
+    const navigation = useNavigation<any>();
+    const isFocused = useIsFocused();
+    const { user } = useAuth();
+
+    // State
+    const [groups, setGroups] = useState<any[]>([]);
+    const [recentActivity, setRecentActivity] = useState<any[]>([]);
+    const [totalPoolBalance, setTotalPoolBalance] = useState(0);
+    const [totalExpense, setTotalExpense] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    // Initialize Push Notifications
+    usePushNotifications();
+
+    // Fetch Dashboard Data
+    const fetchData = async () => {
+        try {
+            // 1. Fetch Groups
+            const groupsRes = await apiMethods.group.getAll();
+            if (groupsRes.data.success && Array.isArray(groupsRes.data.data)) {
+                // Take top 3 groups for dashboard
+                setGroups(groupsRes.data.data.slice(0, 3));
+
+                // Calculate Totals using reduce safely
+                // Backend now sends poolBalance and totalExpense pre-calculated or mapped
+                const balance = groupsRes.data.data.reduce((acc: number, g: any) => acc + (parseFloat(g.poolBalance) || 0), 0);
+                const expense = groupsRes.data.data.reduce((acc: number, g: any) => acc + (parseFloat(g.totalExpense) || 0), 0);
+
+                setTotalPoolBalance(balance);
+                setTotalExpense(expense);
+            } else {
+                setGroups([]);
+                setTotalPoolBalance(0);
+                setTotalExpense(0);
+            }
+
+            // 2. Fetch Recent Transactions
+            // Since we don't have a global "recent transactions" endpoint in apiMethods yet, 
+            // we will fetch from the first group if available as a quick fix, or leave as empty with a comment.
+            // A better approach for the future: backend endpoint /transactions/recent
+
+            if (groupsRes.data.data && groupsRes.data.data.length > 0) {
+                // Try to fetch activity for the first group to show *something*
+                // Ideally we want aggregated activity.
+                // const activityRes = await apiMethods.activity.getGroupActivity(groupsRes.data.data[0].id);
+                // if (activityRes.data.success) {
+                //    setRecentActivity(activityRes.data.data.slice(0, 5));
+                // }
+            }
+
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            setGroups([]);
+        } finally {
+            setIsLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isFocused) {
+            fetchData();
+        }
+    }, [isFocused]);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchData();
+    };
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning,';
+        if (hour < 18) return 'Good Afternoon,';
+        return 'Good Evening,';
+    };
+
+    const gradientColors = colors.primary.gradient as unknown as readonly [string, string, ...string[]];
 
     return (
         <View style={styles.container}>
@@ -25,41 +105,80 @@ export default function DashboardScreen() {
 
             {/* Header with Gradient */}
             <LinearGradient
-                colors={colors.primary.gradient}
+                colors={gradientColors}
                 style={styles.header}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
             >
                 <View style={styles.headerContent}>
-                    <View>
-                        <Text style={styles.greeting}>Welcome back,</Text>
-                        <Text style={styles.userName}>{user.name}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.profileButton}>
+                    <Text style={styles.userName}>{user?.name || 'User'}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <TouchableOpacity
+                        style={styles.profileButton}
+                        onPress={() => navigation.navigate('Notifications')}
+                    >
+                        <View style={styles.iconCircle}>
+                            <Feather name="bell" size={20} color={colors.text.inverse} />
+                            {/* Optional: Add Red Dot if unread exists */}
+                        </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.profileButton}
+                        onPress={() => navigation.navigate('Profile')}
+                    >
                         <View style={styles.profileCircle}>
-                            <Text style={styles.profileInitial}>{user.name.charAt(0)}</Text>
+                            {(user as any)?.avatar ? (
+                                // Use Image if available
+                                <Text style={styles.profileInitial}>{user.name?.charAt(0)}</Text>
+                            ) : (
+                                <Text style={styles.profileInitial}>{user?.name?.charAt(0) || 'U'}</Text>
+                            )}
                         </View>
                     </TouchableOpacity>
                 </View>
-            </LinearGradient>
+            </LinearGradient >
 
             <ScrollView
                 style={styles.content}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary.main} />
+                }
             >
+                {/* Stats Section */}
+                <View style={styles.statsContainer}>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>Total Pool Balance</Text>
+                        {/* Placeholder Data - connect to real aggregation if available */}
+                        <Text style={[styles.statValue, { color: colors.accent.emerald }]}>${totalPoolBalance.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>Total Expense</Text>
+                        <Text style={[styles.statValue, { color: colors.text.primary }]}>${totalExpense.toFixed(2)}</Text>
+                    </View>
+                </View>
+
                 {/* Quick Actions */}
                 <View style={styles.quickActions}>
-                    <TouchableOpacity style={[styles.actionCard, { backgroundColor: colors.primary.main }]}>
+                    <TouchableOpacity
+                        style={[styles.actionCard, { backgroundColor: colors.primary.main }]}
+                        onPress={() => navigation.navigate('CreateGroup')}
+                    >
                         <View style={styles.actionIcon}>
-                            <Text style={styles.actionEmoji}>➕</Text>
+                            <Feather name="plus-circle" size={32} color={colors.text.inverse} />
                         </View>
                         <Text style={styles.actionText}>Create Group</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.actionCard, { backgroundColor: colors.accent.cyan }]}>
+                    <TouchableOpacity
+                        style={[styles.actionCard, { backgroundColor: colors.secondary.main }]}
+                        onPress={() => navigation.navigate('JoinGroup')}
+                    >
                         <View style={styles.actionIcon}>
-                            <Text style={styles.actionEmoji}>🔗</Text>
+                            <Feather name="link" size={32} color={colors.text.inverse} />
                         </View>
                         <Text style={styles.actionText}>Join Group</Text>
                     </TouchableOpacity>
@@ -69,79 +188,81 @@ export default function DashboardScreen() {
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Your Groups</Text>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={() => navigation.navigate('Groups')}>
                             <Text style={styles.seeAll}>See All</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {groups.map((group) => (
-                        <TouchableOpacity key={group.id} style={styles.groupCard} activeOpacity={0.7}>
-                            <View style={styles.groupCardContent}>
-                                <View style={[styles.groupIcon, { backgroundColor: group.color + '20' }]}>
-                                    <Text style={styles.groupEmoji}>🏠</Text>
-                                </View>
+                    {isLoading ? (
+                        <ActivityIndicator color={colors.primary.main} />
+                    ) : (Array.isArray(groups) && groups.length > 0) ? (
+                        groups.map((group) => (
+                            <TouchableOpacity
+                                key={group.id}
+                                style={styles.groupCard}
+                                activeOpacity={0.7}
+                                onPress={() => navigation.navigate('GroupDetails', { groupId: group.id, groupName: group.name })}
+                            >
+                                <View style={styles.groupCardContent}>
+                                    <View style={[styles.groupIcon, { backgroundColor: colors.primary.light }]}>
+                                        <Text style={styles.groupEmoji}>
+                                            {/* Use currency symbol as icon if available, else initial */}
+                                            {group.defaultCurrency?.symbol || group.name.charAt(0).toUpperCase()}
+                                        </Text>
+                                    </View>
 
-                                <View style={styles.groupInfo}>
-                                    <Text style={styles.groupName}>{group.name}</Text>
-                                    <Text style={styles.groupMembers}>{group.members} members</Text>
-                                </View>
+                                    <View style={styles.groupInfo}>
+                                        <Text style={styles.groupName}>{group.name}</Text>
+                                        <Text style={styles.groupMembers}>{group._count?.members || 1} members</Text>
+                                    </View>
 
-                                <View style={styles.groupBalance}>
-                                    <Text style={[
-                                        styles.balanceAmount,
-                                        { color: group.balance >= 0 ? colors.success : colors.error }
-                                    ]}>
-                                        {group.balance >= 0 ? '+' : ''}₹{Math.abs(group.balance).toFixed(2)}
-                                    </Text>
-                                    <Text style={styles.balanceLabel}>
-                                        {group.balance >= 0 ? 'You get' : 'You owe'}
-                                    </Text>
+                                    <View style={styles.groupBalance}>
+                                        <Text style={{ fontWeight: 'bold', color: colors.text.primary }}>
+                                            {group.defaultCurrency?.symbol || '$'}{parseFloat(group.poolBalance || 0).toFixed(2)}
+                                        </Text>
+                                        <Feather name="chevron-right" size={20} color={colors.text.tertiary} />
+                                    </View>
                                 </View>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
+                            </TouchableOpacity>
+                        ))
+                    ) : (
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>No groups yet. Join or create one!</Text>
+                        </View>
+                    )}
                 </View>
 
-                {/* Recent Activity */}
+                {/* Recent Activity (Placeholder for now) */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Recent Activity</Text>
 
-                    <View style={styles.activityCard}>
-                        <View style={[styles.activityIcon, { backgroundColor: colors.error + '20' }]}>
-                            <Text style={styles.activityEmoji}>💸</Text>
+                    {recentActivity.length > 0 ? (
+                        recentActivity.map((item, index) => (
+                            <View key={index} style={styles.groupCard}>
+                                <Text>{item.description} - ${item.amount}</Text>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.emptyCard}>
+                            <Feather name="activity" size={24} color={colors.text.tertiary} style={{ marginBottom: 8 }} />
+                            <Text style={styles.emptyText}>No recent activity</Text>
                         </View>
-                        <View style={styles.activityInfo}>
-                            <Text style={styles.activityTitle}>Dinner at Restaurant</Text>
-                            <Text style={styles.activitySubtitle}>Hostel Room 201 • 2 hours ago</Text>
-                        </View>
-                        <Text style={[styles.activityAmount, { color: colors.error }]}>-₹450</Text>
-                    </View>
-
-                    <View style={styles.activityCard}>
-                        <View style={[styles.activityIcon, { backgroundColor: colors.success + '20' }]}>
-                            <Text style={styles.activityEmoji}>💰</Text>
-                        </View>
-                        <View style={styles.activityInfo}>
-                            <Text style={styles.activityTitle}>Pool Deposit</Text>
-                            <Text style={styles.activitySubtitle}>Weekend Trip • Yesterday</Text>
-                        </View>
-                        <Text style={[styles.activityAmount, { color: colors.success }]}>+₹1000</Text>
-                    </View>
+                    )}
                 </View>
             </ScrollView>
 
-            {/* Floating Action Button */}
-            <TouchableOpacity style={styles.fab} activeOpacity={0.9}>
+            {/* Floating Action Button - Could be used for "Quick Expense" later */}
+            {/* <TouchableOpacity style={styles.fab} activeOpacity={0.9}>
                 <LinearGradient
                     colors={colors.primary.gradient}
                     style={styles.fabGradient}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 >
-                    <Text style={styles.fabIcon}>+</Text>
+                    <Feather name="dollar-sign" size={32} color={colors.text.inverse} />
                 </LinearGradient>
-            </TouchableOpacity>
-        </View>
+            </TouchableOpacity> */}
+        </View >
     );
 }
 
@@ -151,7 +272,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background.secondary,
     },
     header: {
-        paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight! + 10,
+        paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 20) + 10,
         paddingBottom: spacing.xl,
         paddingHorizontal: spacing.lg,
         borderBottomLeftRadius: 32,
@@ -165,16 +286,24 @@ const styles = StyleSheet.create({
     greeting: {
         fontSize: typography.fontSize.sm,
         color: 'rgba(255, 255, 255, 0.8)',
-        fontWeight: typography.fontWeight.medium,
+        fontWeight: typography.fontWeight.medium as any,
     },
     userName: {
         fontSize: typography.fontSize['2xl'],
-        fontWeight: typography.fontWeight.black,
+        fontWeight: typography.fontWeight.black as any,
         color: colors.text.inverse,
         marginTop: spacing.xs,
     },
     profileButton: {
         padding: spacing.xs,
+    },
+    iconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     profileCircle: {
         width: 48,
@@ -188,7 +317,7 @@ const styles = StyleSheet.create({
     },
     profileInitial: {
         fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.bold,
+        fontWeight: typography.fontWeight.bold as any,
         color: colors.text.inverse,
     },
     content: {
@@ -203,6 +332,30 @@ const styles = StyleSheet.create({
         paddingTop: spacing.lg,
         gap: spacing.md,
     },
+    statsContainer: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.lg,
+        marginTop: -30, // Pull up to overlap header slightly if desired, or just margin
+        gap: spacing.md,
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: colors.background.primary,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        ...shadows.md,
+        alignItems: 'center',
+    },
+    statLabel: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.secondary,
+        fontWeight: '600' as any,
+        marginBottom: 4,
+    },
+    statValue: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: 'bold' as any,
+    },
     actionCard: {
         flex: 1,
         borderRadius: borderRadius.lg,
@@ -213,12 +366,9 @@ const styles = StyleSheet.create({
     actionIcon: {
         marginBottom: spacing.sm,
     },
-    actionEmoji: {
-        fontSize: 32,
-    },
     actionText: {
         fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.bold,
+        fontWeight: typography.fontWeight.bold as any,
         color: colors.text.inverse,
     },
     section: {
@@ -233,12 +383,12 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.black,
+        fontWeight: typography.fontWeight.black as any,
         color: colors.text.primary,
     },
     seeAll: {
         fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.semibold,
+        fontWeight: typography.fontWeight.semibold as any,
         color: colors.primary.main,
     },
     groupCard: {
@@ -253,79 +403,48 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     groupIcon: {
-        width: 56,
-        height: 56,
-        borderRadius: borderRadius.md,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
     },
     groupEmoji: {
-        fontSize: 28,
+        fontSize: 24,
+        fontWeight: 'bold' as any,
+        color: colors.primary.main,
     },
     groupInfo: {
         flex: 1,
     },
     groupName: {
         fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.bold,
+        fontWeight: typography.fontWeight.bold as any,
         color: colors.text.primary,
-        marginBottom: spacing.xs / 2,
+        marginBottom: 2,
     },
     groupMembers: {
         fontSize: typography.fontSize.xs,
         color: colors.text.tertiary,
-        fontWeight: typography.fontWeight.medium,
+        fontWeight: typography.fontWeight.medium as any,
     },
     groupBalance: {
         alignItems: 'flex-end',
     },
-    balanceAmount: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.black,
-        marginBottom: spacing.xs / 2,
-    },
-    balanceLabel: {
-        fontSize: typography.fontSize.xs,
-        color: colors.text.tertiary,
-        fontWeight: typography.fontWeight.medium,
-    },
-    activityCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.background.primary,
-        borderRadius: borderRadius.md,
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        ...shadows.sm,
-    },
-    activityIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: borderRadius.sm,
+    emptyCard: {
+        padding: spacing.xl,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        backgroundColor: colors.background.primary,
+        borderRadius: borderRadius.lg,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: colors.neutral.gray[300],
     },
-    activityEmoji: {
-        fontSize: 20,
-    },
-    activityInfo: {
-        flex: 1,
-    },
-    activityTitle: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
-        marginBottom: spacing.xs / 2,
-    },
-    activitySubtitle: {
-        fontSize: typography.fontSize.xs,
+    emptyText: {
         color: colors.text.tertiary,
-    },
-    activityAmount: {
-        fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.black,
+        marginTop: spacing.sm,
     },
     fab: {
         position: 'absolute',
@@ -340,10 +459,5 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    fabIcon: {
-        fontSize: 32,
-        color: colors.text.inverse,
-        fontWeight: typography.fontWeight.bold,
     },
 });

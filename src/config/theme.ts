@@ -7,6 +7,13 @@ export const colors = {
         dark: '#7C3AED',
         gradient: ['#8B5CF6', '#7C3AED'],
     },
+    // Secondary brand colors (Cyan)
+    secondary: {
+        main: '#06B6D4',
+        light: '#67E8F9',
+        dark: '#0891B2',
+        gradient: ['#06B6D4', '#0891B2'],
+    },
 
     // Accent colors
     accent: {
