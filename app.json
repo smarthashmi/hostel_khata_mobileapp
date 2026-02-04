@@ -1,0 +1,60 @@
+{
+    "expo": {
+        "name": "Hostel Khata",
+        "slug": "hostel-khata",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "automatic",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.hostelkhata.app",
+            "infoPlist": {
+                "NSCameraUsageDescription": "Allow Hostel Khata to take photos of receipts",
+                "NSPhotoLibraryUsageDescription": "Allow Hostel Khata to access your photos",
+                "NSFaceIDUsageDescription": "Use Face ID to securely login"
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#ffffff"
+            },
+            "package": "com.hostelkhata.app",
+            "permissions": [
+                "CAMERA",
+                "READ_EXTERNAL_STORAGE",
+                "WRITE_EXTERNAL_STORAGE",
+                "USE_BIOMETRIC",
+                "USE_FINGERPRINT"
+            ]
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "plugins": [
+            "expo-local-authentication",
+            "expo-camera",
+            [
+                "expo-notifications",
+                {
+                    "icon": "./assets/notification-icon.png",
+                    "color": "#ffffff"
+                }
+            ]
+        ],
+        "extra": {
+            "eas": {
+                "projectId": "your-project-id-here"
+            }
+        }
+    }
+}
