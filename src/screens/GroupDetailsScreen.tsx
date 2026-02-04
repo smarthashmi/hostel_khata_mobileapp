@@ -47,15 +47,13 @@ export default function GroupDetailsScreen() {
                 const g = groupRes.data.data;
                 setGroup(g);
 
-                // Calculate Stats
-                // Note: Backend might send these, or we calculate from raw data if available.
-                // Assuming group object has aggregated fields or we fetch them.
-                // For now, mapping from typical backend response:
+                // Map backend response to stats
+                // Backend returns: totalPoolBalance, members array, _count object
                 setStats({
-                    poolBalance: parseFloat(g.poolBalance) || 0,
+                    poolBalance: parseFloat(g.totalPoolBalance || '0'),
                     memberCount: g.members?.length || 0,
-                    transactionCount: g._count?.transactions || 0, // Prisma often returns _count
-                    totalExpenses: parseFloat(g.totalExpense) || 0
+                    transactionCount: g._count?.transactions || 0,
+                    totalExpenses: parseFloat(g.totalExpenses || '0')
                 });
             }
         } catch (error) {
