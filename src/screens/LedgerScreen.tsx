@@ -33,11 +33,17 @@ export default function LedgerScreen() {
         try {
             // Use getHistory from apiMethods
             const response = await apiMethods.transaction.getHistory(groupId);
+            console.log('Transaction response:', response.data);
             if (response.data.success) {
-                setTransactions(response.data.data);
+                // Ensure data is an array
+                const txData = Array.isArray(response.data.data) ? response.data.data : [];
+                setTransactions(txData);
+            } else {
+                setTransactions([]);
             }
         } catch (error) {
             console.error('Error fetching transactions:', error);
+            setTransactions([]); // Set empty array on error
         } finally {
             setIsLoading(false);
             setRefreshing(false);
@@ -50,6 +56,8 @@ export default function LedgerScreen() {
     };
 
     const getFilteredTransactions = () => {
+        // Always ensure transactions is an array
+        if (!Array.isArray(transactions)) return [];
         if (filter === 'ALL') return transactions;
         return transactions.filter(t => t.type === filter);
     };
@@ -240,7 +248,7 @@ const styles = StyleSheet.create({
         color: colors.text.tertiary,
     },
     transactionAmount: {
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
         fontWeight: 'bold',
     },
     emptyContainer: {
@@ -251,6 +259,6 @@ const styles = StyleSheet.create({
     emptyText: {
         marginTop: spacing.md,
         color: colors.text.tertiary,
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
     },
 });
