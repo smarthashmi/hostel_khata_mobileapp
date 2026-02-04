@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.primary.main,
     },
     checkboxLabel: {
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
         color: colors.text.primary,
         fontWeight: '500',
     }

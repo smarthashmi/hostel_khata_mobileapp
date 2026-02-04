@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     notificationTitle: {
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
         color: colors.text.primary,
         fontWeight: '600',
         marginBottom: 2,
@@ -256,6 +256,6 @@ const styles = StyleSheet.create({
     emptyText: {
         marginTop: spacing.md,
         color: colors.text.tertiary,
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
     },
 });

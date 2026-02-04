@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.primary.main,
     },
     tabText: {
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
         color: colors.text.secondary,
         fontWeight: '600',
     },

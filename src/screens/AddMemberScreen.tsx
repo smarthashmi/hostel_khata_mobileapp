@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: colors.neutral.gray[300],
         paddingVertical: spacing.sm,
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
         color: colors.text.primary,
     },
     addButton: {
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     buttonText: {
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
         fontWeight: 'bold',
         color: colors.text.inverse,
     },

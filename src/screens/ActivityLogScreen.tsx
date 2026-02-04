@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     activityDescription: {
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
         color: colors.text.primary,
         marginBottom: 4,
         lineHeight: 20,
@@ -214,6 +214,6 @@ const styles = StyleSheet.create({
     emptyText: {
         marginTop: spacing.md,
         color: colors.text.tertiary,
-        fontSize: typography.fontSize.md,
+        fontSize: typography.fontSize.base,
     },
 });
