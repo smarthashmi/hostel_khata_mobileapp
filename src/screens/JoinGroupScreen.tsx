@@ -13,8 +13,19 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import apiMethods from '../services/apiMethods';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import { Feather } from '@expo/vector-icons';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'] },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'] },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '200': '#E5E7EB', '300': '#D1D5DB' } },
+    accent: { emerald: '#10B981', error: '#EF4444' }
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function JoinGroupScreen() {
     const navigation = useNavigation();
@@ -48,7 +59,7 @@ export default function JoinGroupScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <LinearGradient
-                colors={colors.secondary.gradient}
+                colors={colors?.secondary?.gradient || ['#06B6D4', '#0891B2']}
                 style={styles.header}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -91,7 +102,7 @@ export default function JoinGroupScreen() {
                         disabled={isLoading}
                     >
                         <LinearGradient
-                            colors={colors.secondary.gradient}
+                            colors={colors?.secondary?.gradient || ['#06B6D4', '#0891B2']}
                             style={styles.gradientButton}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}

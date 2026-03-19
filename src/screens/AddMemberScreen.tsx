@@ -14,8 +14,20 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import apiMethods from '../services/apiMethods';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'], light: '#F3E8FF' },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'], light: '#CFFAFE' },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '100': '#F3F4F6', '200': '#E5E7EB', '300': '#D1D5DB' }, white: '#FFFFFF' },
+    accent: { emerald: '#10B981', error: '#EF4444' },
+    error: '#EF4444'
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function AddMemberScreen() {
     const navigation = useNavigation();
@@ -29,7 +41,7 @@ export default function AddMemberScreen() {
     const handleShareCode = async () => {
         try {
             await Share.share({
-                message: `Join my group "${groupName}" on Hostel Khata! Use code: ${groupCode}`,
+                message: `Join my group "${groupName}" on Devide It! Use code: ${groupCode}`,
             });
         } catch (error) {
             console.error('Error sharing:', error);
@@ -52,9 +64,13 @@ export default function AddMemberScreen() {
             // Let's use a placeholder call for now and I will update apiMethods.ts immediately after.
             // Actually, the previous task updated apiMethods.ts but didn't add addVirtualMember.
             // I'll assume I will add apiMethods.group.addVirtualMember
-            await apiMethods.group.addVirtualMember(groupId, { name, email });
+            const response = await apiMethods.group.addVirtualMember(groupId, { name, email });
+            const isInvitation = response.data?.message === 'INVITATION_SENT';
+            const alertMsg = isInvitation
+                ? 'User already exists! An invitation has been sent to their email.'
+                : 'Member added successfully!';
 
-            Alert.alert('Success', 'Member added successfully!', [
+            Alert.alert('Success', alertMsg, [
                 { text: 'OK', onPress: () => navigation.goBack() }
             ]);
         } catch (error: any) {

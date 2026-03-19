@@ -1,14 +1,13 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ENV } from '../config/env';
 
 // API Configuration
-const API_BASE_URL = __DEV__
-    ? 'https://api-hostelkhata.xivra.pk/api'  // Use production for now
-    : 'https://api-hostelkhata.xivra.pk/api';  // Production
+const API_BASE_URL = ENV.API_URL;
 
 // Create axios instance
 const apiClient = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: 'http://192.168.1.X:5000/api', // DEV: replace with your machine's exact local IP address when running standard Expo Go on LAN. Usually 10.0.2.2 for Android Studio emulators.
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',

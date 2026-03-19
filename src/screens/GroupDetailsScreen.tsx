@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -11,13 +11,27 @@ import {
     Platform,
     Linking
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import apiMethods from '../services/apiMethods';
 import * as Clipboard from 'expo-clipboard';
+import { ENV } from '../config/env';
+import { useAuth } from '../contexts/AuthContext';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'], light: '#F3E8FF' },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'], light: '#CFFAFE' },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '200': '#E5E7EB', '300': '#D1D5DB', '600': '#4B5563' } },
+    accent: { emerald: '#10B981', error: '#EF4444' },
+    error: '#EF4444', info: '#3B82F6', warning: '#F59E0B'
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_WIDTH = (width - (spacing.lg * 2) - spacing.md) / 2;
@@ -26,6 +40,7 @@ export default function GroupDetailsScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
     const { groupId, groupName } = route.params;
+    const { user } = useAuth();
 
     const [group, setGroup] = useState<any>(null);
     const [stats, setStats] = useState({
@@ -34,11 +49,14 @@ export default function GroupDetailsScreen() {
         transactionCount: 0,
         totalExpenses: 0
     });
+    const [activity, setActivity] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        fetchGroupDetails();
-    }, [groupId]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchGroupDetails();
+        }, [groupId])
+    );
 
     const fetchGroupDetails = async () => {
         try {
@@ -53,9 +71,28 @@ export default function GroupDetailsScreen() {
                 setStats({
                     poolBalance: parseFloat(g.totalPoolBalance || '0'),
                     memberCount: g.members?.length || 0,
-                    transactionCount: g._count?.transactions || 0,
-                    totalExpenses: parseFloat(g.totalExpenses || '0')
+                    transactionCount: 0, // Will update from stats
+                    totalExpenses: 0 // Will update from stats
                 });
+
+                // 2. Fetch Accurate Statistics (Logic from Web)
+                // Web uses transactionApi.getExpenseStatistics(groupId)
+                const statsRes = await apiMethods.transaction.getStatistics(groupId);
+                if (statsRes.data.success) {
+                    const s = statsRes.data.data;
+                    setStats(prev => ({
+                        ...prev,
+                        transactionCount: s.totalCount || 0,
+                        totalExpenses: parseFloat(s.totalExpenses || '0')
+                    }));
+                }
+
+                // 3. Fetch Recent Activity
+                const activityRes = await apiMethods.activity.getGroupActivity(groupId, { limit: 5 });
+                if (activityRes.data.success) {
+                    const acts = Array.isArray(activityRes.data.data) ? activityRes.data.data : (activityRes.data.data.transactions || []);
+                    setActivity(acts);
+                }
             }
         } catch (error) {
             console.error('Error fetching group details:', error);
@@ -78,8 +115,7 @@ export default function GroupDetailsScreen() {
             }
 
             let url = '';
-            // Determine API URL based on environment (should match api.ts)
-            const API_BASE = 'https://api-hostelkhata.xivra.pk/api';
+            const API_BASE = ENV.API_URL;
 
             if (type === 'TRANSACTIONS') {
                 url = `${API_BASE}/analytics/reports/transactions/${groupId}/csv?token=${token}`;
@@ -161,7 +197,14 @@ export default function GroupDetailsScreen() {
                             <Feather name="copy" size={14} color="rgba(255,255,255,0.7)" style={{ marginLeft: 6 }} />
                         </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.settingsButton} onPress={() => handleFeatureNotImplemented('Settings')}>
+                    <TouchableOpacity
+                        style={styles.settingsButton}
+                        onPress={() => navigation.navigate('GroupSettings', {
+                            groupId,
+                            groupName,
+                            currentCurrencyId: group?.currency?.id
+                        })}
+                    >
                         <Feather name="settings" size={24} color={colors.text.inverse} />
                     </TouchableOpacity>
                 </View>
@@ -171,15 +214,40 @@ export default function GroupDetailsScreen() {
 
                 {/* 1. Stats Row */}
                 <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>Pool Balance</Text>
-                        <Text style={[styles.statValue, { color: colors.accent.emerald }]}>
-                            {group?.defaultCurrency?.symbol || '$'}{stats.poolBalance.toFixed(2)}
-                        </Text>
-                        <View style={styles.statIconAb}>
-                            <Feather name="briefcase" size={16} color={colors.accent.emerald} />
+                    {group?.type === 'POOL_SYSTEM' ? (
+                        <View style={styles.statCard}>
+                            <Text style={styles.statLabel}>Pool Balance</Text>
+                            <Text style={[styles.statValue, { color: colors.accent.emerald }]}>
+                                {group?.defaultCurrency?.symbol || '$'}{stats.poolBalance.toFixed(2)}
+                            </Text>
+                            <View style={styles.statIconAb}>
+                                <Feather name="briefcase" size={16} color={colors.accent.emerald} />
+                            </View>
                         </View>
-                    </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.statCard}
+                            onPress={() => navigation.navigate('Balances', { groupId, groupName })}
+                        >
+                            <Text style={styles.statLabel}>Your Balance</Text>
+                            <Text style={[styles.statValue, {
+                                color: (() => {
+                                    const myBal = parseFloat(group?.members?.find((m: any) => m.user?.id === user?.id)?.currentBalance || '0');
+                                    if (Math.abs(myBal) < 0.01) return colors.text.primary;
+                                    return myBal > 0 ? colors.accent.emerald : colors.error;
+                                })()
+                            }]}>
+                                {(() => {
+                                    const myBal = parseFloat(group?.members?.find((m: any) => m.user?.id === user?.id)?.currentBalance || '0');
+                                    if (Math.abs(myBal) < 0.01) return `${group?.defaultCurrency?.symbol || '$'}0.00`;
+                                    return `${myBal > 0 ? '+' : '-'}${group?.defaultCurrency?.symbol || '$'}${Math.abs(myBal).toFixed(2)}`;
+                                })()}
+                            </Text>
+                            <View style={styles.statIconAb}>
+                                <Feather name="pie-chart" size={16} color={colors.primary.main} />
+                            </View>
+                        </TouchableOpacity>
+                    )}
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Members</Text>
                         <Text style={styles.statValue}>{stats.memberCount}</Text>
@@ -189,13 +257,16 @@ export default function GroupDetailsScreen() {
                     </View>
                 </View>
                 <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
+                    <TouchableOpacity
+                        style={styles.statCard}
+                        onPress={() => navigation.navigate('Ledger', { groupId, groupName, currencySymbol: group?.defaultCurrency?.symbol })}
+                    >
                         <Text style={styles.statLabel}>Transactions</Text>
                         <Text style={styles.statValue}>{stats.transactionCount}</Text>
                         <View style={styles.statIconAb}>
                             <Feather name="list" size={16} color={colors.secondary.main} />
                         </View>
-                    </View>
+                    </TouchableOpacity>
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Total Expenses</Text>
                         <Text style={[styles.statValue, { color: colors.error }]}>
@@ -211,35 +282,53 @@ export default function GroupDetailsScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Quick Actions</Text>
                     <View style={styles.quickActionRow}>
-                        {/* Deposit (Pool Only or All?) User said "Pool Group" has Deposit, implies non-pool might not. 
-                            But "Pool Balance" is shown in Stats, so we assume Pool logic broadly available or checked. */}
+                        {/* Deposit (Pool Only) */}
                         {group?.type === 'POOL_SYSTEM' && (
                             <TouchableOpacity
-                                style={[styles.quickActionButton, { backgroundColor: colors.accent.emerald + '15', borderColor: colors.accent.emerald }]}
+                                style={[styles.quickActionButton, { backgroundColor: colors.accent.emerald }]}
                                 onPress={() => navigation.navigate('AddFund', { groupId, groupName, currencySymbol: group?.currency?.symbol })}
+                                activeOpacity={0.9}
                             >
-                                <View style={[styles.qaIcon, { backgroundColor: colors.accent.emerald }]}>
-                                    <Feather name="plus" size={20} color="#fff" />
+                                <View style={styles.qaIcon}>
+                                    <Feather name="plus" size={24} color="#fff" />
                                 </View>
                                 <View>
-                                    <Text style={[styles.qaTitle, { color: colors.accent.emerald }]}>Add Deposit</Text>
+                                    <Text style={styles.qaTitle}>Add Deposit</Text>
                                     <Text style={styles.qaSubtitle}>Add money to pool</Text>
                                 </View>
                             </TouchableOpacity>
                         )}
 
                         <TouchableOpacity
-                            style={[styles.quickActionButton, { backgroundColor: colors.error + '15', borderColor: colors.error }]}
+                            style={[styles.quickActionButton, { backgroundColor: colors.error }]} // Solid red
                             onPress={() => navigation.navigate('AddExpense', { groupId, groupName, currencySymbol: group?.currency?.symbol })}
+                            activeOpacity={0.9}
                         >
-                            <View style={[styles.qaIcon, { backgroundColor: colors.error }]}>
-                                <Feather name="dollar-sign" size={20} color="#fff" />
+                            <View style={styles.qaIcon}>
+                                <Feather name="dollar-sign" size={24} color="#fff" />
                             </View>
                             <View>
-                                <Text style={[styles.qaTitle, { color: colors.error }]}>Add Expense</Text>
+                                <Text style={styles.qaTitle}>Add Expense</Text>
                                 <Text style={styles.qaSubtitle}>Record new expense</Text>
                             </View>
                         </TouchableOpacity>
+
+                        {/* Settle Up (Expense Tracking Only) */}
+                        {group?.type === 'EXPENSE_TRACKING' && (
+                            <TouchableOpacity
+                                style={[styles.quickActionButton, { backgroundColor: colors.accent.emerald }]}
+                                onPress={() => navigation.navigate('Balances', { groupId, groupName })}
+                                activeOpacity={0.9}
+                            >
+                                <View style={styles.qaIcon}>
+                                    <Feather name="check-circle" size={24} color="#fff" />
+                                </View>
+                                <View>
+                                    <Text style={styles.qaTitle}>Settle Up</Text>
+                                    <Text style={styles.qaSubtitle}>Pay balances</Text>
+                                </View>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
 
@@ -300,9 +389,18 @@ export default function GroupDetailsScreen() {
                             icon="file-text"
                             label="Reports"
                             color={colors.error}
-                            bgColor={colors.error + '20'} // Red for PDF/Excel
-                            onPress={showReportOptions}
+                            bgColor={colors.error + '20'}
+                            onPress={() => navigation.navigate('Reports', { groupId, groupName })}
                         />
+                        {/* 
+                        <MenuGridItem
+                            icon="package"
+                            label="Inventory"
+                            color={colors.secondary.main}
+                            bgColor={colors.secondary.light}
+                            onPress={() => navigation.navigate('Inventory', { groupId, groupName })}
+                        /> 
+                        */}
                     </View>
                 </View>
 
@@ -325,6 +423,49 @@ export default function GroupDetailsScreen() {
                             </View>
                         ))}
                     </ScrollView>
+                </View>
+
+                {/* 5. Recent Activity (New Section) */}
+                <View style={[styles.section, { marginBottom: 30 }]}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Recent Activity</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('ActivityLog', { groupId, groupName })}>
+                            <Text style={styles.seeAll}>See All</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {activity.length > 0 ? (
+                        activity.map((item, index) => (
+                            <View key={index} style={styles.activityCard}>
+                                <View style={[styles.activityIcon, {
+                                    backgroundColor: item.type === 'DEPOSIT' ? colors.accent.emerald + '20' : colors.primary.light
+                                }]}>
+                                    <Feather
+                                        name={item.type === 'DEPOSIT' ? 'arrow-down-left' : 'arrow-up-right'}
+                                        size={18}
+                                        color={item.type === 'DEPOSIT' ? colors.accent.emerald : colors.primary.main}
+                                    />
+                                </View>
+                                <View style={styles.activityInfo}>
+                                    <Text style={styles.activityDesc} numberOfLines={1}>
+                                        {item.description || item.type}
+                                    </Text>
+                                    <Text style={styles.activityMeta}>
+                                        {item.payer?.name || 'Unknown'} • {new Date(item.transactionDate || item.createdAt).toLocaleDateString()}
+                                    </Text>
+                                </View>
+                                <Text style={[styles.activityAmount, {
+                                    color: item.type === 'DEPOSIT' ? colors.accent.emerald : colors.text.primary
+                                }]}>
+                                    {item.type === 'EXPENSE' ? '-' : '+'}${parseFloat(item.amount).toFixed(2)}
+                                </Text>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>No recent activity</Text>
+                        </View>
+                    )}
                 </View>
 
                 <View style={{ height: 40 }} />
@@ -402,9 +543,10 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     statValue: {
-        fontSize: typography.fontSize.lg,
+        fontSize: 24, // Increased from lg
         fontWeight: 'bold',
         color: colors.text.primary,
+        marginVertical: 4,
     },
     statIconAb: {
         position: 'absolute',
@@ -440,31 +582,40 @@ const styles = StyleSheet.create({
     quickActionRow: {
         flexDirection: 'row',
         gap: spacing.md,
+        marginTop: spacing.xs,
     },
     quickActionButton: {
         flex: 1,
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center',
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
-        borderWidth: 1,
-        backgroundColor: colors.background.primary,
+        justifyContent: 'center',
+        paddingVertical: spacing.lg,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.xl,
+        ...shadows.md, // Add standard shadow
+        borderWidth: 0, // Remove border
+        minHeight: 120, // Taller button
     },
     qaIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(255,255,255,0.2)', // Semi-transparent white
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: spacing.sm,
+        marginBottom: spacing.md,
     },
     qaTitle: {
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize.base,
         fontWeight: 'bold',
+        color: '#FFFFFF', // Force white text
+        textAlign: 'center',
+        marginBottom: 2,
     },
     qaSubtitle: {
-        fontSize: 10,
-        color: colors.text.tertiary,
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.8)', // Force white text
+        textAlign: 'center',
     },
     // Grid
     gridContainer: {
@@ -528,5 +679,51 @@ const styles = StyleSheet.create({
     memberRole: {
         fontSize: 10,
         color: colors.text.tertiary,
+    },
+    // Activity Card (Reuse)
+    activityCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.background.primary,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.sm,
+        ...shadows.sm,
+    },
+    activityIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: spacing.md,
+    },
+    activityInfo: {
+        flex: 1,
+    },
+    activityDesc: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: '600',
+        color: colors.text.primary,
+        marginBottom: 2,
+    },
+    activityMeta: {
+        fontSize: 11,
+        color: colors.text.tertiary,
+    },
+    activityAmount: {
+        fontSize: typography.fontSize.base,
+        fontWeight: '600',
+    },
+    emptyCard: {
+        padding: spacing.lg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.neutral.gray[100],
+        borderRadius: borderRadius.md,
+    },
+    emptyText: {
+        color: colors.text.tertiary,
+        fontSize: typography.fontSize.sm,
     },
 });

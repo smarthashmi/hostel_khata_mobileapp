@@ -58,6 +58,9 @@ export const transactionApi = {
     getStatistics: (groupId: number) =>
         apiClient.get(`/transactions/statistics/${groupId}`),
 
+    getRecentTransactions: (limit: number = 10) =>
+        apiClient.get('/transactions/recent', { params: { limit } }),
+
     createExpense: (data: any) =>
         apiClient.post('/transactions/expense', data),
 
@@ -121,7 +124,7 @@ export const settlementApi = {
 // Activity API
 export const activityApi = {
     getGroupActivity: (groupId: number, params?: { limit?: number; offset?: number }) =>
-        apiClient.get(`/activities/${groupId}`, { params }),
+        apiClient.get(`/groups/${groupId}/activity`, { params }),
 };
 
 // Notification API
@@ -247,6 +250,28 @@ export const statisticsApi = {
 };
 
 // Export all
+// Report API
+export const reportApi = {
+    getTransactionCsv: (groupId: number, params?: any) =>
+        apiClient.get(`/reports/groups/${groupId}/transactions/csv`, { params }),
+
+    getBalanceCsv: (groupId: number) =>
+        apiClient.get(`/reports/groups/${groupId}/balances/csv`),
+
+    // Future PDF endpoint if implemented
+    // getTransactionPdf: (groupId: number, params?: any) => ...
+};
+
+// Invitation API
+export const invitationApi = {
+    getPendingInvitations: () =>
+        apiClient.get('/groups/invitations/pending'),
+
+    respondToInvitation: (invitationId: number, action: 'ACCEPT' | 'REJECT') =>
+        apiClient.post(`/groups/invitations/${invitationId}/respond`, { action }),
+};
+
+// Export all
 export default {
     auth: authApi,
     group: groupApi,
@@ -262,4 +287,6 @@ export default {
     inventory: inventoryApi,
     ledger: ledgerApi,
     statistics: statisticsApi,
+    report: reportApi,
+    invitation: invitationApi,
 };

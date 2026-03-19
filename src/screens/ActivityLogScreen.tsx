@@ -13,8 +13,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import apiMethods from '../services/apiMethods';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'], light: '#F3E8FF' },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'], light: '#CFFAFE' },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '100': '#F3F4F6', '200': '#E5E7EB', '300': '#D1D5DB', '500': '#6B7280' }, white: '#FFFFFF' },
+    accent: { emerald: '#10B981', error: '#EF4444' },
+    error: '#EF4444',
+    success: { main: '#10B981' },
+    info: '#3B82F6',
+    warning: '#F59E0B'
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function ActivityLogScreen() {
     const navigation = useNavigation();
@@ -57,7 +72,7 @@ export default function ActivityLogScreen() {
             case 'EXPENSE_CREATED':
                 return { name: 'dollar-sign', color: colors.error };
             case 'DEPOSIT_CREATED':
-                return { name: 'plus-circle', color: colors.success.main };
+                return { name: 'plus-circle', color: (colors.success as any)?.main || '#10B981' };
             case 'SETTLEMENT_CREATED':
             case 'SETTLEMENT_COMPLETED':
                 return { name: 'check-circle', color: colors.info };

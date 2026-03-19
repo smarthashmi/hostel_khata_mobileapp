@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo Starting Hostel Khata Mobile
+echo Starting Devide It Mobile
 echo ========================================
 echo.
 cd /d "%~dp0"

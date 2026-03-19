@@ -15,9 +15,21 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ENV } from '../config/env';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'] },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'] },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '200': '#E5E7EB', '300': '#D1D5DB' } },
+    accent: { emerald: '#10B981', error: '#EF4444' }
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function RegisterScreen() {
     const navigation = useNavigation<any>();
@@ -32,7 +44,8 @@ export default function RegisterScreen() {
     const [showGoogleModal, setShowGoogleModal] = useState(false);
 
     // This URL must match your BACKEND deployment URL
-    const GOOGLE_AUTH_URL = 'https://api-hostelkhata.xivra.pk/api/auth/google';
+    // This URL must match your BACKEND deployment URL
+    const GOOGLE_AUTH_URL = `${ENV.API_URL}/auth/google`;
 
     const handleRegister = async () => {
         if (!name || !email || !password) {
@@ -97,7 +110,7 @@ export default function RegisterScreen() {
             >
                 {/* Header with Gradient */}
                 <LinearGradient
-                    colors={colors.primary.gradient}
+                    colors={colors?.primary?.gradient || ['#8B5CF6', '#7C3AED']}
                     style={styles.header}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -107,7 +120,7 @@ export default function RegisterScreen() {
                             <Text style={styles.logoText}>🏠</Text>
                         </View>
                         <Text style={styles.appName}>Create Account</Text>
-                        <Text style={styles.tagline}>Join Hostel Khata today</Text>
+                        <Text style={styles.tagline}>Join DivideIt today</Text>
                     </View>
                 </LinearGradient>
 
@@ -193,7 +206,7 @@ export default function RegisterScreen() {
                         activeOpacity={0.8}
                     >
                         <LinearGradient
-                            colors={colors.primary.gradient}
+                            colors={colors?.primary?.gradient || ['#8B5CF6', '#7C3AED']}
                             style={styles.registerButtonGradient}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}

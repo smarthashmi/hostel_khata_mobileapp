@@ -10,9 +10,23 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import { useNavigation } from '@react-navigation/native';
+import theme from '../config/theme';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'], light: '#F3E8FF' },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'], light: '#CFFAFE' },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '200': '#E5E7EB', '300': '#D1D5DB' } },
+    accent: { emerald: '#10B981', error: '#EF4444' },
+    error: '#EF4444'
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function ProfileScreen() {
+    const navigation = useNavigation<any>();
     const { user, logout } = useAuth();
 
     const handleLogout = () => {
@@ -57,7 +71,10 @@ export default function ProfileScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Account</Text>
 
-                    <TouchableOpacity style={styles.optionCard}>
+                    <TouchableOpacity
+                        style={styles.optionCard}
+                        onPress={() => navigation.navigate('EditProfile')}
+                    >
                         <Text style={styles.optionIcon}>👤</Text>
                         <View style={styles.optionInfo}>
                             <Text style={styles.optionTitle}>Edit Profile</Text>
@@ -75,7 +92,10 @@ export default function ProfileScreen() {
                         <Text style={styles.optionArrow}>›</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.optionCard}>
+                    <TouchableOpacity
+                        style={styles.optionCard}
+                        onPress={() => navigation.navigate('ChangePassword')}
+                    >
                         <Text style={styles.optionIcon}>🔒</Text>
                         <View style={styles.optionInfo}>
                             <Text style={styles.optionTitle}>Privacy & Security</Text>

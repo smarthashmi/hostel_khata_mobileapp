@@ -12,7 +12,7 @@ if exist node_modules (
     rd /s /q node_modules
     echo ✅ node_modules deleted.
 ) else (
-    echo ℹ️ node_modules not found (Clean start).
+    echo ℹ️  node_modules not found - Clean start.
 )
 
 echo [2/4] Deleting package-lock.json / yarn.lock...

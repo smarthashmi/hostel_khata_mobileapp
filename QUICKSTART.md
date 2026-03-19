@@ -1,4 +1,4 @@
-# 🚀 Quick Start Guide - Hostel Khata Mobile App
+# 🚀 Quick Start Guide - Devide It Mobile App
 
 ## ✅ Installation Complete!
 
@@ -77,7 +77,7 @@ npm run ios
 **Solution**: Make sure you're on the same WiFi network as your computer
 
 ### Issue: "Network request failed"
-**Solution**: The app is connected to production API (`api-hostelkhata.xivra.pk`), ensure you have internet connection
+**Solution**: The app is connected to production API (`api.devideit.com`), ensure you have internet connection
 
 ### Issue: App crashes on startup
 **Solution**: 
@@ -111,7 +111,7 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 
 ## 🌐 API Connection
 
-- **Endpoint**: `https://api-hostelkhata.xivra.pk/api`
+- **Endpoint**: `https://api.devideit.com/api`
 - **Auth**: `/auth/login`, `/auth/register`
 - **Token Storage**: AsyncStorage (persistent)
 

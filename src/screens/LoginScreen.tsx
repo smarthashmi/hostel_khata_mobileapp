@@ -15,9 +15,21 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ENV } from '../config/env';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'] },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'] },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '200': '#E5E7EB', '300': '#D1D5DB' } },
+    accent: { emerald: '#10B981', error: '#EF4444' }
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function LoginScreen() {
     const navigation = useNavigation<any>();
@@ -29,7 +41,12 @@ export default function LoginScreen() {
     const [showGoogleModal, setShowGoogleModal] = useState(false);
 
     // This URL must match your BACKEND deployment URL
-    const GOOGLE_AUTH_URL = 'https://api-hostelkhata.xivra.pk/api/auth/google';
+    // This URL must match your BACKEND deployment URL
+    const GOOGLE_AUTH_URL = `${ENV.API_URL}/auth/google`;
+
+    // Defensively define gradient colors
+    const primaryGradient = colors?.primary?.gradient || ['#8B5CF6', '#7C3AED'];
+
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -60,7 +77,7 @@ export default function LoginScreen() {
         // console.log('WebView URL:', url); // Debugging
 
         // Check if the URL contains the success token
-        // Expected format: https://hostelkhata.xivra.pk/auth/success?token=eyJ...
+        // Expected format: https://api.devideit.com/auth/success?token=eyJ...
         if (url.includes('token=')) {
             // Extract token
             const token = url.split('token=')[1].split('&')[0];
@@ -99,7 +116,7 @@ export default function LoginScreen() {
             >
                 {/* Header with Gradient */}
                 <LinearGradient
-                    colors={colors.primary.gradient}
+                    colors={primaryGradient as any}
                     style={styles.header}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -108,7 +125,7 @@ export default function LoginScreen() {
                         <View style={styles.logoCircle}>
                             <Text style={styles.logoText}>🏠</Text>
                         </View>
-                        <Text style={styles.appName}>Hostel Khata</Text>
+                        <Text style={styles.appName}>DivideIt</Text>
                         <Text style={styles.tagline}>Track expenses together</Text>
                     </View>
                 </LinearGradient>
@@ -148,7 +165,10 @@ export default function LoginScreen() {
                     </View>
 
                     {/* Forgot Password */}
-                    <TouchableOpacity style={styles.forgotButton}>
+                    <TouchableOpacity
+                        style={styles.forgotButton}
+                        onPress={() => navigation.navigate('ForgotPassword')}
+                    >
                         <Text style={styles.forgotText}>Forgot Password?</Text>
                     </TouchableOpacity>
 
@@ -160,7 +180,7 @@ export default function LoginScreen() {
                         activeOpacity={0.8}
                     >
                         <LinearGradient
-                            colors={colors.primary.gradient}
+                            colors={primaryGradient as any}
                             style={styles.loginButtonGradient}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}

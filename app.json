@@ -1,29 +1,43 @@
 {
-    "expo": {
-        "name": "Hostel Khata",
-        "slug": "hostel-khata-mobile",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "userInterfaceStyle": "light",
-        "splash": {
-            "backgroundColor": "#7c3aed",
-            "resizeMode": "contain"
-        },
-        "assetBundlePatterns": [
-            "**/*"
-        ],
-        "ios": {
-            "supportsTablet": true,
-            "bundleIdentifier": "com.hostelkhata.mobile"
-        },
-        "android": {
-            "adaptiveIcon": {
-                "backgroundColor": "#7c3aed"
-            },
-            "package": "com.hostelkhata.mobile"
-        },
-        "web": {
-            "bundler": "metro"
+  "expo": {
+    "name": "DivideIt",
+    "slug": "divideit",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#7c3aed",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.markhor.hostelkhata",
+      "googleServicesFile": "./GoogleService-Info.plist"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#7c3aed"
+      },
+      "package": "com.markhor.hostelkhata",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
-    }
+      ],
+      "@react-native-firebase/messaging"
+    ]
+  }
 }

@@ -13,8 +13,20 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import apiMethods from '../services/apiMethods';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'], light: '#F3E8FF' },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'], light: '#CFFAFE' },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '100': '#F3F4F6', '200': '#E5E7EB', '300': '#D1D5DB' }, white: '#FFFFFF' },
+    accent: { emerald: '#10B981', emerald_gradient: ['#10B981', '#059669'], error: '#EF4444' },
+    error: '#EF4444'
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function AddFundScreen() {
     const navigation = useNavigation<any>();
@@ -41,7 +53,6 @@ export default function AddFundScreen() {
                 groupId: groupId,
                 amount: parseFloat(amount),
                 description: description || 'Pool Deposit',
-                type: 'DEPOSIT', // Important key for backend
                 currencyId: null // Default
             };
 
@@ -118,7 +129,7 @@ export default function AddFundScreen() {
                         disabled={isLoading}
                     >
                         <LinearGradient
-                            colors={colors.accent.emerald_gradient || ['#10B981', '#059669']} // Fallback if not in theme
+                            colors={(colors.accent as any).emerald_gradient || ['#10B981', '#059669']} // Fallback if not in theme
                             style={styles.gradientButton}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}

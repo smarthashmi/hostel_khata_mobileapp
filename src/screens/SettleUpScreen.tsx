@@ -14,20 +14,31 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import apiMethods from '../services/apiMethods';
 import { useAuth } from '../contexts/AuthContext';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'] },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'] },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '200': '#E5E7EB', '300': '#D1D5DB' } },
+    accent: { emerald: '#10B981', error: '#EF4444' }
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 export default function SettleUpScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { groupId, groupName, currencySymbol } = route.params;
+    const { groupId, groupName, currencySymbol, toUserId, amount: initialAmount } = route.params;
     const { user } = useAuth();
 
-    const [amount, setAmount] = useState('');
+    const [amount, setAmount] = useState(initialAmount ? initialAmount.toString() : '');
     const [isLoading, setIsLoading] = useState(false);
     const [members, setMembers] = useState<any[]>([]);
-    const [selectedReceiver, setSelectedReceiver] = useState<number | null>(null);
+    const [selectedReceiver, setSelectedReceiver] = useState<number | null>(toUserId || null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -73,26 +84,25 @@ export default function SettleUpScreen() {
             const receiver = members.find(m => m.user.id === selectedReceiver);
             const receiverName = receiver ? receiver.user.name : 'Unknown';
 
-            const expenseData = {
+            // NEW: Use Settlement API Request
+            // This creates a pending settlement request that needs to be accepted
+            const settlementData = {
                 groupId,
+                toUserId: selectedReceiver,
                 amount: parseFloat(amount),
-                description: `Settlement to ${receiverName}`,
-                participantIds: [selectedReceiver],
-                splitType: 'equal',
-                isFromPoolFund: false,
-                currencyId: null,
-                tags: 'settlement' // Optional tag to identify it
+                notes: `Settlement to ${receiverName}`,
+                // proofImage: null // Can add image upload later
             };
 
-            const response = await apiMethods.transaction.createExpense(expenseData);
+            const response = await apiMethods.settlement.createRequest(settlementData);
 
             if (response.data.success) {
-                Alert.alert('Success', 'Payment recorded successfully!');
+                Alert.alert('Success', 'Settlement request sent! The receiver needs to verify and accept it.');
                 navigation.goBack();
             }
         } catch (error: any) {
             console.error('Settle up error:', error);
-            const msg = error.response?.data?.message || 'Failed to record payment';
+            const msg = error.response?.data?.message || 'Failed to send settlement request';
             Alert.alert('Error', msg);
         } finally {
             setIsSubmitting(false);
@@ -100,7 +110,7 @@ export default function SettleUpScreen() {
     };
 
     // Cast colors for LinearGradient
-    const gradientColors = colors.primary.gradient as unknown as readonly [string, string, ...string[]];
+    const gradientColors = (colors?.primary?.gradient || ['#8B5CF6', '#7C3AED']) as unknown as readonly [string, string, ...string[]];
 
     return (
         <KeyboardAvoidingView

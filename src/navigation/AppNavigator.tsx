@@ -23,13 +23,30 @@ import ProfileScreen from '../screens/ProfileScreen';
 import AddMemberScreen from '../screens/AddMemberScreen';
 import LedgerScreen from '../screens/LedgerScreen';
 import BudgetManagementScreen from '../screens/BudgetManagementScreen';
+import GroupSettingsScreen from '../screens/GroupSettingsScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import EditTransactionScreen from '../screens/EditTransactionScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import ReportsScreen from '../screens/ReportsScreen';
+import InventoryScreen from '../screens/InventoryScreen';
+import InvitationsScreen from '../screens/InvitationsScreen';
 
 // Icons
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../config/theme';
+import theme from '../config/theme';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Defensive theme
+const themeColors = theme?.colors || {
+    primary: { main: '#8B5CF6' },
+    text: { tertiary: '#9CA3AF' },
+    background: { primary: '#FFFFFF' },
+    neutral: { gray: { 200: '#E5E7EB' } }
+};
 
 // Bottom Tab Navigator for authenticated users
 function MainTabs() {
@@ -37,12 +54,12 @@ function MainTabs() {
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: colors.primary.main,
-                tabBarInactiveTintColor: colors.text.tertiary,
+                tabBarActiveTintColor: themeColors.primary.main,
+                tabBarInactiveTintColor: themeColors.text.tertiary,
                 tabBarStyle: {
-                    backgroundColor: colors.background.primary,
+                    backgroundColor: themeColors.background.primary,
                     borderTopWidth: 1,
-                    borderTopColor: colors.neutral.gray[200],
+                    borderTopColor: themeColors.neutral.gray[200],
                     paddingBottom: 8,
                     paddingTop: 8,
                     height: 60,
@@ -101,6 +118,8 @@ export default function AppNavigator() {
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} />
                         <Stack.Screen name="Register" component={RegisterScreen} />
+                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+                        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
                     </>
                 ) : (
                     // Main App Stack
@@ -119,9 +138,17 @@ export default function AppNavigator() {
                         <Stack.Screen name="AddMember" component={AddMemberScreen} />
                         <Stack.Screen name="Ledger" component={LedgerScreen} />
                         <Stack.Screen name="BudgetManagement" component={BudgetManagementScreen} />
+                        <Stack.Screen name="GroupSettings" component={GroupSettingsScreen} />
+                        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+                        <Stack.Screen name="EditTransaction" component={EditTransactionScreen} />
+                        <Stack.Screen name="Reports" component={ReportsScreen} />
+                        <Stack.Screen name="Inventory" component={InventoryScreen} />
+                        <Stack.Screen name="Invitations" component={InvitationsScreen} />
                     </>
                 )}
             </Stack.Navigator>
         </NavigationContainer>
     );
 }
+

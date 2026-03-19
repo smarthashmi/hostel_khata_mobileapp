@@ -1,4 +1,4 @@
-# Hostel Khata Mobile App
+# Devide It Mobile App
 
 React Native mobile application for Android and iOS - Expense tracking and splitting system.
 
@@ -75,15 +75,15 @@ mobile/
 Copy `.env.example` to `.env` and configure:
 
 ```bash
-EXPO_PUBLIC_API_URL=https://api-hostelkhata.xivra.pk/api
+EXPO_PUBLIC_API_URL=https://api.devideit.com/api
 EXPO_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
 EXPO_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key
 ```
 
 ### Backend API
 
-This app connects to the Hostel Khata backend API:
-- **Production**: https://api-hostelkhata.xivra.pk/api
+This app connects to the Devide It backend API:
+- **Production**: https://api.devideit.com/api
 - **Development**: http://localhost:3000/api (or your local IP)
 
 ## 📖 Documentation

@@ -9,7 +9,8 @@ import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    TextStyle
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,23 +31,27 @@ const colors = safeTheme.colors || {
 } as any;
 const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
-export default function AddExpenseScreen() {
+export default function EditTransactionScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { groupId, groupName, currencySymbol } = route.params;
+    const { transaction, groupId, groupName, currencySymbol } = route.params;
     const { user } = useAuth();
 
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('');
+    const [amount, setAmount] = useState(transaction?.amount?.toString() || '');
+    const [description, setDescription] = useState(transaction?.description || '');
     const [isLoading, setIsLoading] = useState(false);
     const [members, setMembers] = useState<any[]>([]);
     const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isFromPool, setIsFromPool] = useState(false);
-    const [isPoolGroup, setIsPoolGroup] = useState(false);
 
+    // Initial load logic
     useEffect(() => {
         fetchGroupMembers();
+        if (transaction?.splits) {
+            // Assuming splits contain user info or userIds
+            const participantIds = transaction.splits.map((s: any) => s.userId || s.user?.id);
+            setSelectedMembers(participantIds.filter((id: number) => id));
+        }
     }, []);
 
     const fetchGroupMembers = async () => {
@@ -55,14 +60,7 @@ export default function AddExpenseScreen() {
             const response = await apiMethods.group.getById(groupId);
             if (response.data.success) {
                 const groupData = response.data.data;
-                const groupMembers = groupData.members;
-                setMembers(groupMembers);
-                setSelectedMembers(groupMembers.map((m: any) => m.user.id));
-
-                // Check if group is pool system
-                if (groupData.type === 'POOL_SYSTEM') {
-                    setIsPoolGroup(true);
-                }
+                setMembers(groupData.members);
             }
         } catch (error) {
             console.error('Error fetching members:', error);
@@ -80,50 +78,73 @@ export default function AddExpenseScreen() {
         }
     };
 
-    const handleCreateExpense = async () => {
+    const handleUpdateTransaction = async () => {
         if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
             Alert.alert('Invalid Amount', 'Please enter a valid amount.');
             return;
         }
         if (!description.trim()) {
-            Alert.alert('Missing Description', 'Please enter a description for the expense.');
+            Alert.alert('Missing Description', 'Please enter a description.');
             return;
         }
         if (selectedMembers.length === 0) {
-            Alert.alert('No Participants', 'Please select at least one person to split with.');
+            Alert.alert('No Participants', 'Please select at least one person.');
             return;
         }
 
         try {
             setIsSubmitting(true);
 
-            const expenseData = {
-                groupId,
+            const updateData = {
                 amount: parseFloat(amount),
                 description,
                 participantIds: selectedMembers,
-                splitType: 'equal', // Simplify for MVP
-                isFromPoolFund: isFromPool,
-                currencyId: null // Use default
+                splitType: 'equal', // Keeping it simple for now
             };
 
-            const response = await apiMethods.transaction.createExpense(expenseData); // We need to ensure this method exists or use generic create
+            const response = await apiMethods.transaction.update(transaction.id, updateData);
 
             if (response.data.success) {
-                Alert.alert('Success', 'Expense added successfully!');
-                navigation.goBack();
+                Alert.alert('Success', 'Transaction updated successfully!', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
             }
         } catch (error: any) {
-            console.error('Create expense error:', error);
-            const msg = error.response?.data?.message || 'Failed to create expense';
+            console.error('Update transaction error:', error);
+            const msg = error.response?.data?.message || 'Failed to update transaction';
             Alert.alert('Error', msg);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Cast colors for LinearGradient
-    const gradientColors = colors.primary.gradient as unknown as readonly [string, string, ...string[]];
+    const handleDeleteTransaction = () => {
+        Alert.alert(
+            'Delete Transaction',
+            'Are you sure you want to delete this transaction?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setIsSubmitting(true);
+                            await apiMethods.transaction.delete(transaction.id);
+                            navigation.goBack();
+                        } catch (error) {
+                            console.error('Delete error:', error);
+                            Alert.alert('Error', 'Failed to delete transaction');
+                            setIsSubmitting(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    // Defensive gradient
+    const primaryGradient = colors?.primary?.gradient || ['#8B5CF6', '#7C3AED'];
 
     return (
         <KeyboardAvoidingView
@@ -131,7 +152,7 @@ export default function AddExpenseScreen() {
             style={styles.container}
         >
             <LinearGradient
-                colors={gradientColors}
+                colors={primaryGradient as any}
                 style={styles.header}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -140,9 +161,9 @@ export default function AddExpenseScreen() {
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <Feather name="x" size={24} color={colors.text.inverse} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Add Expense</Text>
+                    <Text style={styles.headerTitle}>Edit Transaction</Text>
                     <TouchableOpacity
-                        onPress={handleCreateExpense}
+                        onPress={handleUpdateTransaction}
                         disabled={isSubmitting}
                         style={styles.saveButton}
                     >
@@ -166,7 +187,6 @@ export default function AddExpenseScreen() {
                         keyboardType="numeric"
                         value={amount}
                         onChangeText={setAmount}
-                        autoFocus
                     />
                 </View>
 
@@ -224,34 +244,15 @@ export default function AddExpenseScreen() {
                     )}
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Paid by</Text>
-
-                    {isPoolGroup && (
-                        <TouchableOpacity
-                            style={styles.checkboxContainer}
-                            onPress={() => setIsFromPool(!isFromPool)}
-                        >
-                            <View style={[styles.checkbox, isFromPool && styles.checkboxChecked]}>
-                                {isFromPool && <Feather name="check" size={16} color={colors.text.inverse} />}
-                            </View>
-                            <Text style={styles.checkboxLabel}>Pay from Pool Fund</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {!isFromPool && (
-                        <View style={styles.payerRow}>
-                            <View style={styles.memberChipSelected}>
-                                <View style={[styles.avatarSmall, { backgroundColor: colors.neutral.white }]}>
-                                    <Text style={[styles.avatarText, { color: colors.primary.main }]}>
-                                        {user?.name?.charAt(0) || 'U'}
-                                    </Text>
-                                </View>
-                                <Text style={styles.memberNameSelected}>You</Text>
-                            </View>
-                        </View>
-                    )}
-                </View>
+                {/* Delete Button */}
+                <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={handleDeleteTransaction}
+                    disabled={isSubmitting}
+                >
+                    <Feather name="trash-2" size={20} color={colors.error} style={{ marginRight: 8 }} />
+                    <Text style={styles.deleteButtonText}>Delete Transaction</Text>
+                </TouchableOpacity>
 
             </ScrollView>
         </KeyboardAvoidingView>
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background.primary,
     },
     header: {
-        paddingTop: 50,
+        paddingTop: Platform.OS === 'ios' ? 60 : 50,
         paddingBottom: 20,
         paddingHorizontal: spacing.lg,
         borderBottomLeftRadius: 24,
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: typography.fontSize.lg,
-        fontWeight: 'bold',
+        fontWeight: 'bold' as TextStyle['fontWeight'],
         color: colors.text.inverse,
     },
     backButton: {
@@ -297,13 +298,13 @@ const styles = StyleSheet.create({
     },
     currencySymbol: {
         fontSize: typography.fontSize['3xl'],
-        fontWeight: 'bold',
+        fontWeight: 'bold' as TextStyle['fontWeight'],
         color: colors.text.primary,
         marginRight: spacing.xs,
     },
     amountInput: {
         fontSize: typography.fontSize['4xl'],
-        fontWeight: 'bold',
+        fontWeight: 'bold' as TextStyle['fontWeight'],
         color: colors.text.primary,
         minWidth: 100,
         textAlign: 'center',
@@ -324,14 +325,14 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: typography.fontSize.base,
         color: colors.text.primary,
-        fontWeight: '500',
+        fontWeight: '500' as TextStyle['fontWeight'],
     },
     section: {
         marginBottom: spacing.xl,
     },
     sectionTitle: {
         fontSize: typography.fontSize.sm,
-        fontWeight: 'bold',
+        fontWeight: 'bold' as TextStyle['fontWeight'],
         color: colors.text.secondary,
         marginBottom: spacing.md,
         textTransform: 'uppercase',
@@ -367,41 +368,29 @@ const styles = StyleSheet.create({
     },
     avatarText: {
         fontSize: 10,
-        fontWeight: 'bold',
+        fontWeight: 'bold' as TextStyle['fontWeight'],
         color: colors.primary.main,
     },
     memberName: {
         fontSize: typography.fontSize.sm,
         color: colors.text.primary,
-        fontWeight: '500',
+        fontWeight: '500' as TextStyle['fontWeight'],
     },
     memberNameSelected: {
         color: colors.text.inverse,
     },
-    payerRow: {
-        flexDirection: 'row',
-    },
-    checkboxContainer: {
+    deleteButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.md,
-    },
-    checkbox: {
-        width: 24,
-        height: 24,
-        borderRadius: 6,
-        borderWidth: 2,
-        borderColor: colors.primary.main,
         justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: '#FEE2E2', // Light red
+        marginTop: spacing.xl,
     },
-    checkboxChecked: {
-        backgroundColor: colors.primary.main,
-    },
-    checkboxLabel: {
+    deleteButtonText: {
+        color: colors.error,
+        fontWeight: 'bold' as TextStyle['fontWeight'],
         fontSize: typography.fontSize.base,
-        color: colors.text.primary,
-        fontWeight: '500',
     }
 });

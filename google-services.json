@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "263237815766",
+    "firebase_url": "https://hoste-khata-default-rtdb.firebaseio.com",
+    "project_id": "hoste-khata",
+    "storage_bucket": "hoste-khata.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:263237815766:android:aeddac2fd24ed3aba02877",
+        "android_client_info": {
+          "package_name": "com.markhor.hostelkhata"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4jzhQNZYKqolEX_SYaQTAvTQH35YRAxI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

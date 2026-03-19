@@ -4,46 +4,86 @@ import {
     Text,
     StyleSheet,
     FlatList,
+    SectionList,
     ActivityIndicator,
     TouchableOpacity,
     RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
-import apiMethods from '../services/apiMethods';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import { format } from 'date-fns';
+import theme from '../config/theme';
+import apiMethods from '../services/apiMethods';
+import { useAuth } from '../contexts/AuthContext';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'], light: '#F3E8FF' },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'], light: '#CFFAFE' },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '100': '#F3F4F6', '200': '#E5E7EB', '300': '#D1D5DB' }, white: '#FFFFFF' },
+    accent: { emerald: '#10B981', error: '#EF4444' },
+    error: '#EF4444'
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
+// ... (imports)
 
 export default function LedgerScreen() {
     const navigation = useNavigation();
     const route = useRoute<any>();
-    const { groupId, groupName } = route.params;
+    const { groupId, groupName, currencySymbol } = route.params;
+    const { user } = useAuth(); // Get current user for balance calculation
 
     const [transactions, setTransactions] = useState<any[]>([]);
+    const [stats, setStats] = useState({ totalDebt: 0, totalOwed: 0 }); // New State
     const [isLoading, setIsLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [filter, setFilter] = useState<'ALL' | 'DEPOSIT' | 'EXPENSE'>('ALL');
 
-    useEffect(() => {
-        fetchTransactions();
-    }, [groupId]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchTransactions();
+        }, [groupId, user]) // Added user to dependency array
+    );
 
     const fetchTransactions = async () => {
         try {
-            // Use getHistory from apiMethods
-            const response = await apiMethods.transaction.getHistory(groupId);
-            console.log('Transaction response:', response.data);
-            if (response.data.success) {
-                // Ensure data is an array
-                const txData = Array.isArray(response.data.data) ? response.data.data : [];
+            // Parallel fetch: Transactions + User Balances
+            const [txRes, balRes] = await Promise.all([
+                apiMethods.transaction.getHistory(groupId),
+                apiMethods.settlement.getBalances(groupId).catch(() => ({ data: { success: false } }))
+            ]);
+
+            if (txRes.data.success) {
+                const responseData = txRes.data.data;
+                const txData = Array.isArray(responseData)
+                    ? responseData
+                    : (Array.isArray(responseData?.transactions) ? responseData.transactions : []);
                 setTransactions(txData);
-            } else {
-                setTransactions([]);
+            }
+
+            if (balRes.data?.success && user) {
+                // Calculate user's personal debt and owed amounts
+                const balances = balRes.data.data.balances || [];
+
+                // Find current user's balance
+                const myBalance = balances.find((b: any) => b.user?.id === user.id || b.userId === user.id);
+
+                if (myBalance) {
+                    const balanceValue = parseFloat(myBalance.balance || '0');
+                    // Positive balance = others owe me (totalOwed)
+                    // Negative balance = I owe others (totalDebt)
+                    setStats({
+                        totalDebt: balanceValue < 0 ? Math.abs(balanceValue) : 0,
+                        totalOwed: balanceValue > 0 ? balanceValue : 0
+                    });
+                }
             }
         } catch (error) {
             console.error('Error fetching transactions:', error);
-            setTransactions([]); // Set empty array on error
         } finally {
             setIsLoading(false);
             setRefreshing(false);
@@ -65,7 +105,7 @@ export default function LedgerScreen() {
     const renderTransactionItem = ({ item }: { item: any }) => {
         const isExpense = item.type === 'EXPENSE';
         const isDeposit = item.type === 'DEPOSIT';
-        const amountColor = isDeposit ? colors.accent.emerald : colors.error; // rose -> error
+        const amountColor = isDeposit ? colors.accent.emerald : colors.error;
         const iconName = isDeposit ? 'arrow-down-left' : 'arrow-up-right';
 
         return (
@@ -80,7 +120,7 @@ export default function LedgerScreen() {
                     </Text>
                 </View>
                 <Text style={[styles.transactionAmount, { color: amountColor }]}>
-                    {isExpense ? '-' : '+'}${parseFloat(item.amount).toFixed(2)}
+                    {isExpense ? '-' : '+'}{currencySymbol || '$'}{parseFloat(item.amount).toFixed(2)}
                 </Text>
             </TouchableOpacity>
         );
@@ -109,6 +149,18 @@ export default function LedgerScreen() {
                 </View>
             </LinearGradient>
 
+            {/* Net Balance Summary (Parity with Web) */}
+            <View style={styles.summaryContainer}>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryLabel}>Total Debt</Text>
+                    <Text style={[styles.summaryValue, { color: colors.error }]}>-${Math.abs(stats.totalDebt || 0).toFixed(2)}</Text>
+                </View>
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryLabel}>Total Owed</Text>
+                    <Text style={[styles.summaryValue, { color: colors.accent.emerald }]}>+${Math.abs(stats.totalOwed || 0).toFixed(2)}</Text>
+                </View>
+            </View>
+
             {/* Filter Tabs */}
             <View style={styles.filterContainer}>
                 {(['ALL', 'DEPOSIT', 'EXPENSE'] as const).map((f) => (
@@ -129,9 +181,14 @@ export default function LedgerScreen() {
                     <ActivityIndicator size="large" color={colors.primary.main} />
                 </View>
             ) : (
-                <FlatList
-                    data={getFilteredTransactions()}
+                <SectionList
+                    sections={groupTransactionsByDate(getFilteredTransactions())}
                     renderItem={renderTransactionItem}
+                    renderSectionHeader={({ section: { title } }) => (
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionHeaderText}>{title}</Text>
+                        </View>
+                    )}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
@@ -142,10 +199,32 @@ export default function LedgerScreen() {
                             <Text style={styles.emptyText}>No transactions found</Text>
                         </View>
                     }
+                    stickySectionHeadersEnabled={false}
                 />
             )}
         </View>
     );
+}
+
+// Helper to group transactions by Month Year
+function groupTransactionsByDate(transactions: any[]) {
+    if (!Array.isArray(transactions)) return [];
+
+    const groups: { [key: string]: any[] } = {};
+
+    transactions.forEach(t => {
+        const date = new Date(t.transactionDate);
+        const key = format(date, 'MMMM yyyy'); // e.g. "February 2026"
+        if (!groups[key]) {
+            groups[key] = [];
+        }
+        groups[key].push(t);
+    });
+
+    return Object.keys(groups).map(key => ({
+        title: key,
+        data: groups[key]
+    }));
 }
 
 const styles = StyleSheet.create({
@@ -179,6 +258,31 @@ const styles = StyleSheet.create({
         fontSize: typography.fontSize.sm,
         color: 'rgba(255, 255, 255, 0.8)',
         textAlign: 'center',
+    },
+    summaryContainer: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        gap: spacing.md,
+        backgroundColor: colors.background.secondary,
+    },
+    summaryCard: {
+        flex: 1,
+        backgroundColor: colors.background.primary,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        alignItems: 'center',
+        ...shadows.sm,
+    },
+    summaryLabel: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.secondary,
+        marginBottom: 4,
+        fontWeight: '600',
+    },
+    summaryValue: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: 'bold',
     },
     filterContainer: {
         flexDirection: 'row',
@@ -254,11 +358,27 @@ const styles = StyleSheet.create({
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 60,
+        paddingVertical: 60,
     },
     emptyText: {
-        marginTop: spacing.md,
         color: colors.text.tertiary,
-        fontSize: typography.fontSize.base,
+        fontSize: typography.fontSize.sm,
+        textAlign: 'center',
+        paddingHorizontal: spacing.xl,
+    },
+    sectionHeader: {
+        backgroundColor: colors.background.secondary,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        marginTop: 16,
+        marginBottom: 8,
+        borderRadius: 8,
+    },
+    sectionHeaderText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: 'bold',
+        color: colors.text.secondary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
 });

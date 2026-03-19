@@ -12,8 +12,20 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import apiMethods from '../services/apiMethods';
-import { colors, spacing, typography, borderRadius, shadows } from '../config/theme';
+import theme from '../config/theme';
 import { Feather } from '@expo/vector-icons';
+
+const safeTheme = theme || {};
+const colors = safeTheme.colors || {
+    primary: { main: '#8B5CF6', gradient: ['#8B5CF6', '#7C3AED'], light: '#F3E8FF' },
+    secondary: { main: '#06B6D4', gradient: ['#06B6D4', '#0891B2'], light: '#CFFAFE' },
+    background: { primary: '#FFFFFF', secondary: '#F9FAFB' },
+    text: { primary: '#000', secondary: '#4B5563', tertiary: '#9CA3AF', inverse: '#FFF' },
+    neutral: { gray: { '100': '#F3F4F6', '200': '#E5E7EB', '300': '#D1D5DB' } },
+    accent: { emerald: '#10B981', error: '#EF4444' },
+    error: '#EF4444', info: '#3B82F6', warning: '#F59E0B'
+} as any;
+const { spacing, typography, borderRadius, shadows } = safeTheme as any;
 
 // Types
 interface Group {
@@ -21,6 +33,12 @@ interface Group {
     name: string;
     code: string;
     role: string;
+    type?: string;
+    totalPoolBalance?: string;
+    defaultCurrency?: {
+        symbol: string;
+        code: string;
+    };
     _count?: {
         members: number;
     };
@@ -63,8 +81,15 @@ export default function GroupListScreen() {
             activeOpacity={0.7}
         >
             <View style={styles.cardHeader}>
-                <View style={styles.iconContainer}>
-                    <Text style={styles.iconText}>{item.name.charAt(0).toUpperCase()}</Text>
+                <View style={[
+                    styles.iconContainer,
+                    { backgroundColor: item.type === 'POOL_SYSTEM' ? colors.primary.light : colors.secondary.light }
+                ]}>
+                    <Feather
+                        name={item.type === 'POOL_SYSTEM' ? 'layers' : 'list'}
+                        size={24}
+                        color={item.type === 'POOL_SYSTEM' ? colors.primary.main : colors.secondary.main}
+                    />
                 </View>
                 <View style={styles.cardContent}>
                     <Text style={styles.groupName}>{item.name}</Text>
@@ -82,6 +107,13 @@ export default function GroupListScreen() {
                 <View style={[styles.badge, styles.roleBadge]}>
                     <Text style={[styles.badgeText, { color: colors.secondary.main }]}>{item.role}</Text>
                 </View>
+                {/* Balance Badge */}
+                <View style={[styles.badge, { backgroundColor: colors.accent.emerald + '15', marginLeft: 'auto', marginRight: 0 }]}>
+                    <Feather name="briefcase" size={12} color={colors.accent.emerald} style={{ marginRight: 4 }} />
+                    <Text style={[styles.badgeText, { color: colors.accent.emerald, fontWeight: 'bold' }]}>
+                        {item.defaultCurrency?.symbol || '$'}{parseFloat(item.totalPoolBalance || '0').toFixed(2)}
+                    </Text>
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -96,9 +128,8 @@ export default function GroupListScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <LinearGradient
-                colors={colors.primary.gradient}
+                colors={colors.primary.gradient as any}
                 style={styles.header}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}

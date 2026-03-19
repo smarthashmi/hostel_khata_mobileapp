@@ -1,95 +1,88 @@
-import { useState, useEffect, useRef } from 'react';
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
-import { apiMethods } from '../services/apiMethods';
-
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-    }),
-});
-
-async function registerForPushNotificationsAsync() {
-    let token;
-
-    if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-        });
-    }
-
-    if (Device.isDevice) {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-        if (finalStatus !== 'granted') {
-            console.log('Failed to get push token for push notification!');
-            return;
-        }
-        // Learn more about projectId:
-        // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
-        // For now we assume default expo project ID behavior
-        token = (await Notifications.getExpoPushTokenAsync({
-            projectId: Constants.expoConfig?.extra?.eas?.projectId,
-        })).data;
-        console.log('Expo Push Token:', token);
-    } else {
-        console.log('Must use physical device for Push Notifications');
-    }
-
-    return token;
-}
+import { useState, useEffect } from 'react';
+import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import { Platform, Alert } from 'react-native';
+import apiMethods from '../services/apiMethods';
 
 export const usePushNotifications = () => {
-    const [expoPushToken, setExpoPushToken] = useState<string | undefined>('');
-    const [notification, setNotification] = useState<Notifications.Notification | undefined>(undefined);
-    const notificationListener = useRef<Notifications.Subscription>();
-    const responseListener = useRef<Notifications.Subscription>();
+    const [fcmToken, setFcmToken] = useState<string | undefined>('');
+    const [notification, setNotification] = useState<FirebaseMessagingTypes.RemoteMessage | undefined>(undefined);
+
+    const requestUserPermission = async () => {
+        const authStatus = await messaging().requestPermission();
+        const enabled =
+            authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+            authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+        if (enabled) {
+            console.log('Authorization status:', authStatus);
+            getFcmToken();
+        } else {
+            console.log('Push notification permission denied');
+        }
+    };
+
+    const getFcmToken = async () => {
+        try {
+            const token = await messaging().getToken();
+            if (token) {
+                console.log('FCM Push Token:', token);
+                setFcmToken(token);
+                // Send token to backend
+                apiMethods.notification.registerPushToken(token)
+                    .then(() => console.log('FCM token registered with backend'))
+                    .catch(err => {
+                        console.log('Backend FCM token registration failed:', err.message);
+                    });
+            } else {
+                console.log('Failed to get FCM token');
+            }
+        } catch (error) {
+            console.log('Error fetching FCM token', error);
+        }
+
+        // Listen to whether the token changes
+        return messaging().onTokenRefresh(token => {
+            console.log('FCM Token Refreshed:', token);
+            setFcmToken(token);
+            apiMethods.notification.registerPushToken(token).catch(e => console.log(e));
+        });
+    };
 
     useEffect(() => {
-        registerForPushNotificationsAsync().then(token => {
-            setExpoPushToken(token);
-            if (token) {
-                // Send token to backend
-                // We wrap this in a try/catch or just fire and forget because
-                // the backend might not support this endpoint yet (live vs local mismatch)
-                console.log('Sending push token to server:', token);
-                apiMethods.notification.registerPushToken(token)
-                    .then(() => console.log('Push token registered with backend'))
-                    .catch(err => {
-                        // 404 is expected if backend is not updated yet
-                        console.log('Backend push token registration failed (expected if backend is old):', err.message);
-                    });
-            }
+        requestUserPermission();
+
+        // Handle notifications when the app is in the foreground
+        const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
+            console.log('A new FCM message arrived (foreground)!', JSON.stringify(remoteMessage));
+            setNotification(remoteMessage);
+            // Optionally show local alert
+            // Alert.alert(remoteMessage.notification?.title || '', remoteMessage.notification?.body || '');
         });
 
-        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-            setNotification(notification);
+        // Handle notifications when the app is running in the background but opened by clicking on the notification
+        const unsubscribeOnNotificationOpenedApp = messaging().onNotificationOpenedApp(remoteMessage => {
+            console.log('Notification caused app to open from background state:', remoteMessage.notification);
+            // Handle navigation
         });
 
-        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            console.log(response);
-            // Handle navigation here based on notification data
-        });
+        // Handle notifications when the app is opened from a quit state
+        messaging()
+            .getInitialNotification()
+            .then(remoteMessage => {
+                if (remoteMessage) {
+                    console.log('Notification caused app to open from quit state:', remoteMessage.notification);
+                    // Handle navigation
+                }
+            });
 
         return () => {
-            if (notificationListener.current) notificationListener.current.remove();
-            if (responseListener.current) responseListener.current.remove();
+            unsubscribeOnMessage();
+            unsubscribeOnNotificationOpenedApp();
         };
     }, []);
 
     return {
-        expoPushToken,
+        expoPushToken: fcmToken, // Keep the same exported variable name to avoid breaking other components
         notification,
     };
 };
